@@ -1022,3 +1022,18 @@ def health():
 def run_render_server():
     port = int(os.environ.get("PORT", 8080))
     render_app.run(host='0.0.0.0', port=port)
+
+# ================== RENDER HEALTH SERVER ==================
+from flask import Flask
+import threading, os
+
+render_app = Flask(__name__)
+
+@render_app.route('/')
+@render_app.route('/health')
+def health():
+    return "PRO_X_DEVIL is running!"
+
+def run_render_server():
+    port = int(os.environ.get("PORT", 8080))
+    render_app.run(host='0.0.0.0', port=port)
