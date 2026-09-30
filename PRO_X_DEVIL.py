@@ -1,4 +1,3 @@
-import threading
 import asyncio, os, json, logging, random, time
 from telegram import Update, ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
