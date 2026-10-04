@@ -19,9 +19,9 @@ GC_LINK_2 = "https://t.me/+akbZVBNc6Q02MTE1"
 PREFIXES = ['.', '/']
 MAX_RAID = 999999999
 BATCH_DELAY = 0
-NC_SPEED = 0.2
-ZENO_SPEED = 0.2
-EMO_SPEED = 0.2
+NC_SPEED = 0.1
+ZENO_SPEED = 0.1
+EMO_SPEED = 0.1
 FLOOD_LIMIT = 5
 FLOOD_TIME = 5
 
@@ -196,26 +196,6 @@ def menu():
     ])
 
 # ================== SPAM ENGINE (ULTRA FAST) ==================
-async def run_spam(context, chat_id, target_user, count, custom_text, reply_to=None):
-    m = mention(target_user) if target_user else ""
-    i = 0
-    while raid_state.get(chat_id, False) and i < MAX_RAID:
-        if count and i >= count: break
-        if custom_text:
-            line = f"{m} {custom_text}".strip() if m else custom_text
-        else:
-            base = random.choice(REPLY_LIST) if REPLY_LIST else "💀"
-            line = f"{m} {base}".strip() if m else base
-        try:
-            kw = {"chat_id": chat_id, "text": line}
-            if reply_to: kw["reply_to_message_id"] = reply_to
-            await context.bot.send_message(**kw)
-        except RetryAfter as e:
-            await asyncio.sleep(e.retry_after + 1)
-        except: pass
-        i += 1
-        await asyncio.sleep(BATCH_DELAY)
-
 async def nc_loop(k, prefix, context):
     while k in nc_tasks:
         try:
@@ -237,23 +217,6 @@ async def emo_loop(k, prefix, context):
             await asyncio.sleep(EMO_SPEED)
         except: await asyncio.sleep(2)
 # ================== RAID ==================
-async def cmd_raid(update, context):
-    if not is_auth(update.effective_user.id):
-        return await update.message.reply_text("❌ Access Denied!")
-    if not update.message.reply_to_message:
-        return await update.message.reply_text("📌 Reply .raid [count]")
-    chat_id = update.effective_chat.id
-    target = update.message.reply_to_message.from_user
-    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS or target.id == context.bot.id:
-        return await update.message.reply_text("❌ Protected!")
-    count = None
-    _, args = parse_cmd(update.message.text)
-    if args and args.strip().isdigit():
-        count = int(args.strip())
-    raid_state[chat_id] = True
-    await update.message.reply_text(f"💀 Raid on {target.first_name}!\n🔢 {count or '∞'}")
-    await run_spam(context, chat_id, target, count, None)
-
 async def cmd_spam(update, context):
     if not is_auth(update.effective_user.id):
         return await update.message.reply_text("❌ Access Denied!")
@@ -284,10 +247,6 @@ async def cmd_ultimate(update, context):
     raid_state[chat_id] = True
     await update.message.reply_text(f"💀 ULTIMATE on {target.first_name}!")
     await run_spam(context, chat_id, target, MAX_RAID, None)
-
-async def cmd_stop(update, context):
-    raid_state[update.effective_chat.id] = False
-    await update.message.reply_text("🛑 STOPPED!")
 
 async def cmd_stopultimate(update, context):
     for k in list(raid_state.keys()):
@@ -381,26 +340,12 @@ async def cmd_stopreplyraid(update, context):
     else:
         await update.message.reply_text("⚠️ No active replyraid")
 
-async def combined_handler(update, context):
-    try:
-        if not update.message or not update.effective_user:
-            return
-        uid = str(update.effective_user.id)
-        if uid in REPLYRAID and REPLYRAID[uid].get("active"):
-            await update.message.reply_text(
-                random.choice(REPLY_LIST),
-                reply_to_message_id=update.message.message_id
-            )
-    except:
-        pass
-
-# ================== FLOOD SYSTEM ==================
 async def cmd_flood(update, context):
     await update.message.reply_text(f"🌊 AntiFlood: ON\nLimit: {FLOOD_LIMIT} msgs/{FLOOD_TIME} sec\nMode: Mute")
 
 async def cmd_setflood(update, context):
     if not is_own(update.effective_user.id):
-        return await update.message.reply_text("👑 Sirf OWNER!")
+        return await update.message.reply_text("👑 Sirf OWNER ya CO-OWNER!")
     _, args = parse_cmd(update.message.text)
     if not args:
         return await update.message.reply_text("Usage: .setflood [limit]")
@@ -443,11 +388,7 @@ async def flood_check(update, context):
 async def cmd_gali(update, context):
     await update.message.reply_text(random.choice(REPLY_LIST))
 
-async def cmd_shayari(update, context):
-    await update.message.reply_text(random.choice(REPLY_LIST))
 
-async def cmd_joke(update, context):
-    await update.message.reply_text(random.choice(REPLY_LIST))
 
 async def cmd_roast(update, context):
     if not update.message.reply_to_message:
@@ -455,8 +396,6 @@ async def cmd_roast(update, context):
     t = update.message.reply_to_message.from_user
     await update.message.reply_text(f"{t.first_name} {random.choice(REPLY_LIST)}")
 
-async def cmd_truth(update, context):
-    await update.message.reply_text(random.choice(REPLY_LIST))
 
 async def cmd_dare(update, context):
     await update.message.reply_text(random.choice(REPLY_LIST))
@@ -469,10 +408,6 @@ async def cmd_ping(update, context):
     m = await update.message.reply_text("🏓 ...")
     await m.edit_text(f"🏓 Pong! {int((time.time()-s)*1000)}ms")
 
-async def cmd_id(update, context):
-    t = update.message.reply_to_message.from_user if update.message.reply_to_message else update.effective_user
-    await update.message.reply_text(f"Name: {t.first_name}\nID: {t.id}")
-# ================== SUDO ==================
 async def cmd_requestsudo(update, context):
     uid = update.effective_user.id
     if uid in (OWNER_ID, CO_OWNER_ID) or uid in SUDO_USERS:
@@ -487,8 +422,9 @@ async def cmd_requestsudo(update, context):
         pass
 
 async def cmd_approvesudo(update, context):
-    if not is_own(update.effective_user.id):
-        return await update.message.reply_text("👑 Sirf OWNER!")
+    uid = update.effective_user.id
+    if not (uid == OWNER_ID or uid == CO_OWNER_ID):
+        return await update.message.reply_text("👑 Sirf OWNER ya CO-OWNER!")
     _, args = parse_cmd(update.message.text)
     if not args or not args.strip().isdigit():
         return await update.message.reply_text("Usage: .approvesudo [id]")
@@ -511,8 +447,9 @@ async def cmd_mysudo(update, context):
         await update.message.reply_text("❌ SUDO nahi!\n📝 .requestsudo")
 
 async def cmd_addsudo(update, context):
-    if not is_own(update.effective_user.id):
-        return await update.message.reply_text("👑 Sirf OWNER!")
+    uid = update.effective_user.id
+    if not (uid == OWNER_ID or uid == CO_OWNER_ID):
+        return await update.message.reply_text("👑 Sirf OWNER ya CO-OWNER!")
     tid = update.message.reply_to_message.from_user.id if update.message.reply_to_message else None
     if not tid:
         _, args = parse_cmd(update.message.text)
@@ -524,8 +461,9 @@ async def cmd_addsudo(update, context):
     await update.message.reply_text("✅ Sudo added!")
 
 async def cmd_removesudo(update, context):
-    if not is_own(update.effective_user.id):
-        return await update.message.reply_text("👑 Sirf OWNER!")
+    uid = update.effective_user.id
+    if not (uid == OWNER_ID or uid == CO_OWNER_ID):
+        return await update.message.reply_text("👑 Sirf OWNER ya CO-OWNER!")
     tid = update.message.reply_to_message.from_user.id if update.message.reply_to_message else None
     if not tid:
         _, args = parse_cmd(update.message.text)
@@ -621,41 +559,6 @@ async def cmd_insult(update, context):
     await update.message.reply_text(f"🤬 {t.first_name} {random.choice(REPLY_LIST)}")
 
 
-
-
-async def premium_welcome(update, context):
-    try:
-        for member in update.message.new_chat_members:
-            if member.id == context.bot.id:
-                continue
-            name = member.first_name or "Bhai"
-            username = "@" + member.username if member.username else "No Username"
-            text = (
-                "Welcome " + name + "\n\n"
-                "ID: " + str(member.id) + "\n"
-                "Username: " + username + "\n\n"
-                "Rules:\n"
-                "- Gali mat de\n"
-                "- Admin ki baat maan\n"
-                "- Spam mat kar\n"
-                "- Active reh\n\n"
-                "Owner: " + OWNER_USERNAME + "\n"
-                "PRO_X_DEVIL"
-            )
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-    except Exception as e:
-        logger.error("Welcome error: " + str(e))
-
-async def premium_goodbye(update, context):
-    try:
-        if update.message.left_chat_member:
-            left = update.message.left_chat_member
-            if left.id == context.bot.id:
-                return
-            name = left.first_name or "User"
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Bye " + name + "! Bhaag gaya chakka")
-    except Exception as e:
-        logger.error("Goodbye error: " + str(e))
 
 
 async def cmd_hardraid(update, context):
@@ -882,158 +785,1495 @@ async def cmd_start(update, context):
     await update.message.reply_text(text, reply_markup=menu())
 
 
-async def cmd_help(update, context):
+async def cmd_roast(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .roast")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"{t.first_name} {random.choice(REPLY_LIST)}")
+
+
+async def cmd_id(update, context):
+    target = update.message.reply_to_message.from_user if update.message.reply_to_message else update.effective_user
+    uid = target.id
+    name = target.first_name or "No Name"
+    username = "@" + target.username if target.username else "No Username"
+    chat_id = update.effective_chat.id
+    chat_title = update.effective_chat.title if update.effective_chat.title else "Private Chat"
+    chat_type = update.effective_chat.type
+
+    if uid == OWNER_ID:
+        role = "👑 OWNER"
+    elif uid == CO_OWNER_ID:
+        role = "🛡️ CO-OWNER"
+    elif uid in SUDO_USERS:
+        role = "⭐ SUDO"
+    else:
+        role = "👤 USER"
+
+    if chat_type == "private":
+        chat_info = "Private Chat"
+    else:
+        chat_info = chat_title + " (" + str(chat_id) + ")"
+
     text = (
         "╔══════════════════════════════════════════╗\n"
-        "║                                          ║\n"
-        "║     💀  P R O _ X _ D E V I L  💀        ║\n"
-        "║            M E N U                       ║\n"
-        "║                                          ║\n"
+        "║         🆔  USER  INFO  🆔               ║\n"
         "╚══════════════════════════════════════════╝\n\n"
         "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  🔥  RAID  COMMANDS                    ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
-        "  • .raid [count]        ➜  Reply pe raid\n"
-        "  • .hardraid            ➜  HARD RAID\n"
-        "  • .massraid            ➜  MASS RAID\n"
-        "  • .nukeraid            ➜  NUCLEAR RAID\n"
-        "  • .ultraid             ➜  ULTRA RAID\n"
-        "  • .spamraid [text]     ➜  CUSTOM RAID\n"
-        "  • .raidall             ➜  RAID ALL\n"
-        "  • .ultimate            ➜  INFINITE RAID\n"
-        "  • .spam [count] [text] ➜  Custom spam\n"
-        "  • .stop                ➜  Raid band\n"
-        "  • .stopultimate        ➜  All stop\n\n"
+        "┃       👤  PERSONAL  DETAILS           ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        "  👤  NAME       :  " + name + "\n"
+        "  🆔  USER ID    :  " + str(uid) + "\n"
+        "  📛  USERNAME   :  " + username + "\n"
+        "  🎖️  ROLE       :  " + role + "\n\n"
         "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  🎭  TITLE  COMMANDS                   ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
-        "  • .nc [name]           ➜  NC title\n"
-        "  • .zenonc [name]       ➜  Zeno title\n"
-        "  • .emo [name]          ➜  Emoji title\n"
-        "  • .stopnc              ➜  NC stop\n"
-        "  • .stopzeno            ➜  Zeno stop\n"
-        "  • .stopemo             ➜  Emo stop\n\n"
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  💀  REPLY  RAID                       ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
-        "  • .replyraid           ➜  Reply pe gaali\n"
-        "  • .stopreplyraid       ➜  Stop\n\n"
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  🎮  GAMES  &  FUN                     ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
-        "  • .dice .dart .basket .football .bowling .slot\n"
-        "  • .gay .lesbian .couple .ship\n"
-        "  • .slap .hug .kiss .insult\n"
-        "  • .gali .shayari .joke .roast\n"
-        "  • .truth .dare\n\n"
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  🌊  FLOOD  SYSTEM                     ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
-        "  • .flood               ➜  Flood info\n"
-        "  • .setflood [limit]    ➜  Set limit\n\n"
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  ⭐  SUDO  SYSTEM                      ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
-        "  • .requestsudo         ➜  Sudo maang\n"
-        "  • .mysudo              ➜  Apna status\n"
-        "  • .listsudo            ➜  Sudo list\n"
-        "  • .addsudo             ➜  Owner only\n"
-        "  • .removesudo          ➜  Owner only\n"
-        "  • .approvesudo [id]    ➜  Owner only\n\n"
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  ⚙️  SYSTEM                            ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
-        "  • .start .help .alive .ping .id\n\n"
+        "┃       💬  CHAT  DETAILS               ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        "  📌  CHAT NAME  :  " + chat_info + "\n"
+        "  🆔  CHAT ID    :  " + str(chat_id) + "\n"
+        "  📂  CHAT TYPE  :  " + chat_type.title() + "\n\n"
         "╔══════════════════════════════════════════╗\n"
-        "║   👑 OWNER: " + OWNER_USERNAME + "\n"
-        "║   🛡️ CO-OWNER: " + CO_OWNER_USERNAME + "\n"
-        "║                                          ║\n"
         "║   💀 PRO_X_DEVIL — THE BEAST 💀          ║\n"
-        "║        🔥  ULTRA POWERED  🔥             ║\n"
+        "╚══════════════════════════════════════════╝"
+    )
+    await update.message.reply_text(text)
+
+
+# ================== ASLI CONTENT ==================
+SHAYARI_LIST = [
+    "Mohabbat mein hum tumhe bhulate nahi 🥀",
+    "Tere bina ek pal reh paate nahi ❤️",
+    "Dil toot gaya tera, par meri dhadkan juda hai 💔",
+    "Har khushi tere naam, har gham tere naam 🌹",
+    "Tu na ho to kuch bhi nahi, tu hai to sab kuch hai ✨",
+    "Chand bhi sharma jaye teri muskan se 🌙",
+    "Sitare bhi jal jaye teri ada se ⭐",
+    "Teri aankhon mein doob jana chahta hoon 🌊",
+    "Tere bina zindagi adhuri si lagti hai 🌙",
+    "Tere naam se juda hai mera har lamha 💫",
+    "Tu meri subah, tu meri shaam hai 🌅",
+    "Tere bina ye dil udaas rehta hai 💔",
+    "Teri yaadon mein kho jata hoon main 🌙",
+    "Tere ishq mein pagal ho gaya hoon main 💘",
+    "Teri muskan meri duniya hai 😊",
+    "Tere bina kuch achha nahi lagta 🌹",
+    "Teri baahon mein sukoon milta hai ❤️",
+    "Tere naam ki roshni hai meri zindagi ✨",
+    "Teri aankhein meri jannat hai 🌟",
+    "Tere bina ye zindagi adhoori hai 💫",
+]
+
+TRUTH_LIST = [
+    "Tu kabhi kisi ka best friend nahi ban sakta 😏",
+    "Teri zindagi mein sirf drama hai, pyaar nahi 💔",
+    "Tu jitna smart dikhta hai, utna hai nahi 🤡",
+    "Teri crush tujhe pasand nahi karti 💔",
+    "Tu apne aap ko overestimate karta hai 📈",
+    "Tere saare friends fake hain 🎭",
+    "Tu jab tak online hota hai, akela hota hai 📱",
+    "Teri life mein koi asli pyaar nahi hai 💔",
+    "Tu apni galtiyan maanne se darta hai 😰",
+    "Tu jhooth bolne mein expert hai 🤥",
+    "Tune apne maa-baap ko kabhi khush nahi kiya 💔",
+    "Tera sabse bada darr failure hai 😨",
+    "Tu doosron ki success se jalda hai 😤",
+    "Teri life mein koi purpose nahi hai 🎯",
+    "Tu dikhawa karta hai, asli nahi 🤡",
+]
+
+QUOTE_LIST = [
+    "Zindagi mein sabse bada sukh, apne aap par vishwas karna hai 💪",
+    "Jo beet gaya usse bhool jao, jo aage hai uski taiyari karo 🚀",
+    "Sapne woh nahi jo aap sote hue dekhte hain, sapne woh hain jo aapko sone nahi dete 💭",
+    "Kamyabi ka raaz, haar ke baad uthna hai 🏆",
+    "Apni taqat ko pehchano, duniya tumhari hai 🌍",
+    "Har mushkil ke baad asaani hai 🌈",
+    "Waqt se bada koi guru nahi ⏰",
+    "Mehnat karo, phal zaroor milega 🌱",
+    "Dusron ki ninda mat karo, apna kaam karo 🧘",
+    "Zindagi ek safar hai, iska aish karo ✈️",
+    "Jo tumhe rula sakta hai, wahi tumhe hansa sakta hai 😊",
+    "Apne aap se pyaar karo, duniya jhukegi ❤️",
+]
+
+JOKE_LIST = [
+    "Teacher: Homework kahan hai? Student: Sir WiFi nahi tha 😂",
+    "Doctor: Roz exercise karte ho? Patient: Sir TV remote uthata hoon 📺",
+    "Biwi: Mujhe kitna pyaar karte ho? Husband: Jitna WiFi ka signal 📶",
+    "Teacher: 2+2 kitna? Student: 4. Teacher: Shabash! Student: Aur 4 bhi? 😅",
+    "Boss: Tum late kyun aaye? Employee: Sir, neend nahi khuli 😂",
+    "Teacher: Tumne homework kyun nahi kiya? Student: Sir kal homework tha, aaj kya hai? 😅",
+    "Doctor: Aapko kya problem hai? Patient: Doctor mujhe neend nahi aati. Doctor: Toh count karo 😴",
+    "Ek aadmi: Doctor mujhe chashma chahiye. Doctor: Kya padhne mein dikkat? Aadmi: Nahi, TV dekhne mein 📺",
+    "Pati: Khana banaya? Biwi: Haan. Pati: Kaisa hai? Biwi: Try karo 😋",
+    "Ladka: Doctor bhoolne ki bimari hai. Doctor: Kab se? Ladka: Kya kab se? 🤔",
+]
+
+async def cmd_hiraid(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message: return await update.message.reply_text("📌 Reply .hiraid [count]")
+    chat_id = update.effective_chat.id
+    target = update.message.reply_to_message.from_user
+    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS or target.id == context.bot.id:
+        return await update.message.reply_text("❌ Protected!")
+    count = None
+    _, args = parse_cmd(update.message.text)
+    if args and args.strip().isdigit(): count = int(args.strip())
+    raid_state[chat_id] = True
+    await update.message.reply_text(f"🔥 HINDI RAID on {target.first_name}!")
+    await run_spam(context, chat_id, target, count, None)
+
+async def cmd_pbraid(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message: return await update.message.reply_text("📌 Reply .pbraid [count]")
+    chat_id = update.effective_chat.id
+    target = update.message.reply_to_message.from_user
+    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS or target.id == context.bot.id:
+        return await update.message.reply_text("❌ Protected!")
+    count = None
+    _, args = parse_cmd(update.message.text)
+    if args and args.strip().isdigit(): count = int(args.strip())
+    raid_state[chat_id] = True
+    await update.message.reply_text(f"🔥 PUNJABI RAID on {target.first_name}!")
+    await run_spam(context, chat_id, target, count, None)
+
+async def cmd_randi(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message: return await update.message.reply_text("📌 Reply .randi [count]")
+    chat_id = update.effective_chat.id
+    target = update.message.reply_to_message.from_user
+    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS or target.id == context.bot.id:
+        return await update.message.reply_text("❌ Protected!")
+    count = None
+    _, args = parse_cmd(update.message.text)
+    if args and args.strip().isdigit(): count = int(args.strip())
+    raid_state[chat_id] = True
+    await update.message.reply_text(f"🔥 ONE-WORD RAID on {target.first_name}!")
+    await run_spam(context, chat_id, target, count, "RANDI")
+
+async def cmd_eraid(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message: return await update.message.reply_text("📌 Reply .eraid [count]")
+    chat_id = update.effective_chat.id
+    target = update.message.reply_to_message.from_user
+    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS or target.id == context.bot.id:
+        return await update.message.reply_text("❌ Protected!")
+    count = None
+    _, args = parse_cmd(update.message.text)
+    if args and args.strip().isdigit(): count = int(args.strip())
+    raid_state[chat_id] = True
+    await update.message.reply_text(f"🔥 EMOJI RAID on {target.first_name}!")
+    emoji_lines = ["💀","🔥","😈","🤬","💣","🪓","🩸","☠️","🥵","💦"]
+    i = 0
+    while raid_state.get(chat_id, False) and i < MAX_RAID:
+        if count and i >= count: break
+        try: await context.bot.send_message(chat_id=chat_id, text=random.choice(emoji_lines))
+        except: pass
+        i += 1
+        await asyncio.sleep(0)
+
+async def cmd_gali(update, context):
+    if not update.message.reply_to_message: return await update.message.reply_text("📌 Reply .gali")
+    chat_id = update.effective_chat.id
+    target = update.message.reply_to_message.from_user
+    raid_state[chat_id] = True
+    await update.message.reply_text(f"🔥 UNLIMITED ABUSE on {target.first_name}!")
+    await run_spam(context, chat_id, target, MAX_RAID, None)
+
+async def cmd_uraid(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message: return await update.message.reply_text("📌 Reply .uraid [count]")
+    chat_id = update.effective_chat.id
+    target = update.message.reply_to_message.from_user
+    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS or target.id == context.bot.id:
+        return await update.message.reply_text("❌ Protected!")
+    count = None
+    _, args = parse_cmd(update.message.text)
+    if args and args.strip().isdigit(): count = int(args.strip())
+    raid_state[chat_id] = True
+    await update.message.reply_text(f"🔥 UNLIMITED RAID on {target.first_name}!")
+    await run_spam(context, chat_id, target, count, None)
+
+async def cmd_rraid(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message: return await update.message.reply_text("📌 Reply .rraid")
+    target = update.message.reply_to_message.from_user
+    REPLYRAID[str(target.id)] = {"active": True, "by": update.effective_user.id}
+    await update.message.reply_text(f"🔥 REPLY RAID ON — {target.first_name}")
+
+async def cmd_drraid(update, context):
+    for tid, data in list(REPLYRAID.items()):
+        if data.get("by") == update.effective_user.id: REPLYRAID[tid]["active"] = False
+    await update.message.reply_text("🛑 REPLY RAID OFF!")
+
+async def cmd_spam(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    _, args = parse_cmd(update.message.text)
+    if not args: return await update.message.reply_text("Usage: .spam [count] [text]")
+    parts = args.strip().split(maxsplit=1)
+    try: count = int(parts[0])
+    except: return await update.message.reply_text("❌ Number daal")
+    if count > MAX_RAID: count = MAX_RAID
+    custom = parts[1] if len(parts) > 1 else None
+    chat_id = update.effective_chat.id
+    target = update.message.reply_to_message.from_user if update.message.reply_to_message else None
+    raid_state[chat_id] = True
+    await update.message.reply_text("💀 SPAM STARTED!")
+    await run_spam(context, chat_id, target, count, custom)
+
+
+async def cmd_sudo(update, context):
+    await update.message.reply_text(
+        "👑 OWNER: " + OWNER_USERNAME + "\n"
+        "🛡️ CO-OWNER: " + CO_OWNER_USERNAME + "\n"
+        "⭐ TOTAL SUDO: " + str(len(SUDO_USERS))
+    )
+
+async def cmd_getid(update, context):
+    target = None
+    if update.message.reply_to_message:
+        target = update.message.reply_to_message.from_user
+    elif update.message.entities:
+        for ent in update.message.entities:
+            if ent.type == "text_mention":
+                target = ent.user
+                break
+    if not target:
+        return await update.message.reply_text("📌 Reply karke .getid")
+    out = "🆔 ID: " + str(target.id) + "\n"
+    if target.username:
+        out += "📛 Username: @" + target.username + "\n"
+    out += "👤 Name: " + (target.first_name or "No Name")
+    await update.message.reply_text(out)
+
+async def cmd_botstats(update, context):
+    text = (
+        "╔═══════════════════════════════╗\n"
+        "║    📊 BOT STATS 📊            ║\n"
+        "╚═══════════════════════════════╝\n\n"
+        "👑 Owner: " + OWNER_USERNAME + "\n"
+        "🛡️ Co-Owner: " + CO_OWNER_USERNAME + "\n"
+        "⭐ Sudo Users: " + str(len(SUDO_USERS)) + "\n"
+        "📝 Total Lines: " + str(len(REPLY_LIST)) + "\n"
+        "💀 Active Raids: " + str(sum(1 for v in raid_state.values() if v)) + "\n"
+        "🎭 NC Tasks: " + str(len(nc_tasks)) + "\n"
+        "🎭 Zeno Tasks: " + str(len(zeno_tasks)) + "\n"
+        "🎭 Emo Tasks: " + str(len(emo_tasks)) + "\n"
+        "💀 ReplyRaid: " + str(sum(1 for v in REPLYRAID.values() if v.get('active')))
+    )
+    await update.message.reply_text(text)
+
+
+# ================== DM START + WELCOME ==================
+async def cmd_dm_start(update, context):
+    if update.effective_chat.type != "private":
+        return
+    u = update.effective_user
+    text = (
+        "╔══════════════════════════════════════════╗\n"
+        "║     💀  P R O _ X _ D E V I L  💀        ║\n"
+        "║         ⚡ ULTRA POWERED ⚡              ║\n"
+        "╚══════════════════════════════════════════╝\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃      🔥  WELCOME  BOSS  🔥             ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        "  👤  NAME       :  " + (u.first_name or "Bhai") + "\n"
+        "  🆔  USER ID    :  " + str(u.id) + "\n"
+        "  ⚡  STATUS     :  🟢 ONLINE\n"
+        "  🚀  SPEED      :  ULTRA FAST\n"
+        "  💀  POWER      :  ∞ INFINITE\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃        👑  OWNER  INFO  👑             ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        "  👑  " + OWNER_USERNAME + "\n"
+        "  🛡️  " + CO_OWNER_USERNAME + "\n\n"
+        "╔══════════════════════════════════════════╗\n"
+        "║  💀 PRO_X_DEVIL — THE BEAST  💀         ║\n"
         "╚══════════════════════════════════════════╝"
     )
     await update.message.reply_text(text, reply_markup=menu())
 
+
+async def premium_welcome(update, context):
+    try:
+        for member in update.message.new_chat_members:
+            if member.id == context.bot.id:
+                continue
+            name = member.first_name or "Bhai"
+            username = "@" + member.username if member.username else "No Username"
+            text = (
+                "╔═══════════════════════════════╗\n"
+                "║      💀  WELCOME  💀          ║\n"
+                "╚═══════════════════════════════╝\n\n"
+                "  👤  NAAM     :  " + name + "\n"
+                "  🆔  ID       :  " + str(member.id) + "\n"
+                "  📛  USERNAME :  " + username + "\n\n"
+                "  ✅  .help bhej commands ke liye\n"
+                "  👑  " + OWNER_USERNAME + "\n\n"
+                "╔═══════════════════════════════╗\n"
+                "║  💀 PRO_X_DEVIL — THE BEAST  ║\n"
+                "╚═══════════════════════════════╝"
+            )
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    except Exception as e:
+        logger.error("Welcome error: " + str(e))
+
+
+async def premium_goodbye(update, context):
+    try:
+        if update.message.left_chat_member:
+            left = update.message.left_chat_member
+            if left.id == context.bot.id:
+                return
+            name = left.first_name or "User"
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="👋 Bye " + name + "! Bhaag gaya chakka 🤣")
+    except Exception as e:
+        logger.error("Goodbye error: " + str(e))
+
+
+async def cmd_shayari(update, context):
+    await update.message.reply_text(random.choice(SHAYARI_LIST))
+
+async def cmd_quote(update, context):
+    await update.message.reply_text(random.choice(QUOTE_LIST))
+
+async def cmd_joke(update, context):
+    await update.message.reply_text(random.choice(JOKE_LIST))
+
+async def cmd_truth(update, context):
+    await update.message.reply_text(random.choice(TRUTH_LIST))
+
+
+# ================== DM GAALI HANDLER ==================
+async def dm_gaali_handler(update, context):
+    try:
+        if update.effective_chat.type != "private":
+            return
+        if not update.message or not update.message.text:
+            return
+        # Agar user ne .start, .help, .alive bheja hai toh ignore
+        text_lower = update.message.text.lower()
+        if text_lower in [".start", "/start", ".help", "/help", ".alive", "/alive", ".ping", "/ping"]:
+            return
+        # Baaki sab pe gaali
+        await update.message.reply_text(random.choice(REPLY_LIST))
+    except:
+        pass
+
+
+# ================== PREMIUM MENU ==================
+async def cmd_unmute(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .unmute")
+    t = update.message.reply_to_message.from_user
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=update.effective_chat.id,
+            user_id=t.id,
+            permissions=ChatPermissions(
+                can_send_messages=True,
+                can_send_media_messages=True,
+                can_send_other_messages=True,
+                can_add_web_page_previews=True,
+                can_send_polls=True,
+                can_invite_users=True,
+            )
+        )
+        await update.message.reply_text(f"🔊 {t.first_name} unmuted!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ {e}\n\nBot ko admin banao!")
+
+
+# ================== RAID WITH USERNAME ==================
+async def cmd_raid(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    
+    chat_id = update.effective_chat.id
+    target = None
+    count = None
+    
+    # Args parse karo
+    _, args = parse_cmd(update.message.text)
+    if args:
+        parts = args.strip().split()
+        for p in parts:
+            if p.isdigit():
+                count = int(p)
+            elif p.startswith("@"):
+                # Username se user dhundho
+                try:
+                    target = await context.bot.get_chat(p)
+                except:
+                    pass
+            elif p.startswith("tg://user?id="):
+                try:
+                    uid = int(p.split("=")[1])
+                    target = await context.bot.get_chat(uid)
+                except:
+                    pass
+    
+    # Agar reply hai toh target reply wala
+    if not target and update.message.reply_to_message:
+        target = update.message.reply_to_message.from_user
+    
+    # Agar target nahi mila
+    if not target:
+        return await update.message.reply_text("📌 Reply karo ya @username daalo: .raid [count] @user")
+    
+    # Protected check
+    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS or target.id == context.bot.id:
+        return await update.message.reply_text("❌ Protected user!")
+    
+    raid_state[chat_id] = True
+    name = target.first_name if hasattr(target, 'first_name') else "User"
+    await update.message.reply_text(f"💀 Raid on {name}!\n🔢 Count: {count or '∞'}")
+    await run_spam(context, chat_id, target, count, None)
+
+
+# ================== WELCOME / GOODBYE ==================
+async def premium_welcome(update, context):
+    try:
+        for member in update.message.new_chat_members:
+            if member.id == context.bot.id:
+                continue
+            name = member.first_name or "Bhai"
+            username = "@" + member.username if member.username else "No Username"
+            text = (
+                "╔════════════════════════════════════╗\n"
+                "║                                    ║\n"
+                "║      🎉  W E L C O M E  🎉         ║\n"
+                "║                                    ║\n"
+                "╚════════════════════════════════════╝\n\n"
+                "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+                "┃      👋  NAYA  MEMBER  👋       ┃\n"
+                "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+                "  👤  NAAM     :  " + name + "\n"
+                "  🆔  ID       :  " + str(member.id) + "\n"
+                "  📛  USERNAME :  " + username + "\n\n"
+                "  🌟  Swagat hai bhai!\n"
+                "  🎊  Aapka is group mein swagat hai\n"
+                "  💫  Umeed hai aap ache se rehoge\n\n"
+                "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+                "┃      📋  QUICK  INFO  📋        ┃\n"
+                "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+                "  📌  .help  ➜  Menu dekh\n"
+                "  📌  Rules follow karo\n"
+                "  📌  Active raho\n\n"
+                "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+                "┃      👑  OWNER  👑              ┃\n"
+                "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+                "  👑  " + OWNER_USERNAME + "\n"
+                "  🛡️  " + CO_OWNER_USERNAME + "\n\n"
+                "╔════════════════════════════════════╗\n"
+                "║  💀 PRO_X_DEVIL — THE BEAST  💀    ║\n"
+                "╚════════════════════════════════════╝"
+            )
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    except Exception as e:
+        logger.error("Welcome error: " + str(e))
+
+
+async def premium_goodbye(update, context):
+    try:
+        if update.message.left_chat_member:
+            left = update.message.left_chat_member
+            if left.id == context.bot.id:
+                return
+            name = left.first_name or "User"
+            text = (
+                "╔════════════════════════════════════╗\n"
+                "║                                    ║\n"
+                "║      👋  G O O D B Y E  👋         ║\n"
+                "║                                    ║\n"
+                "╚════════════════════════════════════╝\n\n"
+                "  💔  " + name + " chala gaya!\n\n"
+                "  🌟  Umeed hai acha laga hoga\n"
+                "  💫  Wapas aana kabhi\n"
+                "  🎊  Khush rehna bhai\n\n"
+                "╔════════════════════════════════════╗\n"
+                "║  💀 PRO_X_DEVIL — THE BEAST  💀    ║\n"
+                "╚════════════════════════════════════╝"
+            )
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    except Exception as e:
+        logger.error("Goodbye error: " + str(e))
+
+
+async def cmd_stop(update, context):
+    chat_id = update.effective_chat.id
+    raid_state[chat_id] = False
+    await update.message.reply_text("🛑 STOPPED ALL RAID/SPAM!")
+
+
+async def cmd_stopultimate(update, context):
+    for k in list(raid_state.keys()):
+        raid_state[k] = False
+    for tid in list(REPLYRAID.keys()):
+        REPLYRAID[tid]["active"] = False
+    await update.message.reply_text("🛑 ALL RAIDS + REPLYRAID STOPPED!")
+
+
+async def combined_handler(update, context):
+    try:
+        if not update.message or not update.effective_user:
+            return
+        uid = str(update.effective_user.id)
+        # ReplyRaid Check
+        if uid in REPLYRAID and REPLYRAID[uid].get("active"):
+            line = random.choice(REPLY_LIST) if REPLY_LIST else "💀"
+            await update.message.reply_text(line, reply_to_message_id=update.message.message_id)
+    except Exception as e:
+        logger.error(f"Combined handler error: {e}")
+
+
+async def cmd_rraid(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .rraid")
+    target = update.message.reply_to_message.from_user
+    if target.id in (OWNER_ID, CO_OWNER_ID) or target.id in SUDO_USERS:
+        return await update.message.reply_text("❌ Protected!")
+    REPLYRAID[str(target.id)] = {"active": True, "by": update.effective_user.id}
+    await update.message.reply_text(f"🔥 REPLY RAID ON — {target.first_name}")
+
+
+async def cmd_drraid(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if update.message.reply_to_message:
+        tid = str(update.message.reply_to_message.from_user.id)
+        if tid in REPLYRAID:
+            REPLYRAID[tid]["active"] = False
+            return await update.message.reply_text("🛑 REPLY RAID OFF!")
+    for tid, data in list(REPLYRAID.items()):
+        if data.get("by") == update.effective_user.id:
+            REPLYRAID[tid]["active"] = False
+    await update.message.reply_text("🛑 REPLY RAID OFF!")
+
+
+async def cmd_replyraid(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .replyraid")
+    target = update.message.reply_to_message.from_user
+    REPLYRAID[str(target.id)] = {"active": True, "by": update.effective_user.id}
+    await update.message.reply_text(f"💀 REPLY RAID ON — {target.first_name}")
+
+
+async def cmd_stopreplyraid(update, context):
+    for tid, data in list(REPLYRAID.items()):
+        if data.get("by") == update.effective_user.id:
+            REPLYRAID[tid]["active"] = False
+    await update.message.reply_text("🛑 REPLY RAID OFF!")
+
+
+async def cmd_mute(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .mute")
+    t = update.message.reply_to_message.from_user
+    if t.id in (OWNER_ID, CO_OWNER_ID) or t.id in SUDO_USERS:
+        return await update.message.reply_text("❌ Protected user!")
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=update.effective_chat.id,
+            user_id=t.id,
+            permissions=ChatPermissions(can_send_messages=False)
+        )
+        await update.message.reply_text(f"🔇 {t.first_name} muted!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ {e}\nBot ko admin banao!")
+
+
+async def cmd_unmute(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .unmute")
+    t = update.message.reply_to_message.from_user
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=update.effective_chat.id,
+            user_id=t.id,
+            permissions=ChatPermissions(
+                can_send_messages=True,
+                can_send_media_messages=True,
+                can_send_other_messages=True,
+                can_add_web_page_previews=True,
+                can_send_polls=True,
+                can_invite_users=True
+            )
+        )
+        await update.message.reply_text(f"🔊 {t.first_name} unmuted!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ {e}\nBot ko admin banao!")
+
+
+async def run_spam(context, chat_id, target_user, count, custom_text, reply_to=None):
+    m = mention(target_user) if target_user else ""
+    i = 0
+    while raid_state.get(chat_id, False) and i < MAX_RAID:
+        if count and i >= count:
+            break
+        if custom_text:
+            line = f"{m} {custom_text}".strip() if m else custom_text
+        else:
+            base = random.choice(REPLY_LIST) if REPLY_LIST else "💀"
+            line = f"{m} {base}".strip() if m else base
+        try:
+            kwargs = {"chat_id": chat_id, "text": line}
+            if reply_to:
+                kwargs["reply_to_message_id"] = reply_to
+            await context.bot.send_message(**kwargs)
+        except RetryAfter as e:
+            await asyncio.sleep(e.retry_after + 1)
+        except Exception:
+            pass
+        i += 1
+        await asyncio.sleep(BATCH_DELAY)
+
+# ================== ASLI FUN CONTENT ==================
+SHAYARI_LIST = [
+    "Mohabbat mein hum tumhe bhulate nahi 🥀",
+    "Tere bina ek pal reh paate nahi ❤️",
+    "Dil toot gaya tera, par meri dhadkan juda hai 💔",
+    "Har khushi tere naam, har gham tere naam 🌹",
+    "Tu na ho to kuch bhi nahi, tu hai to sab kuch hai ✨",
+    "Chand bhi sharma jaye teri muskan se 🌙",
+    "Sitare bhi jal jaye teri ada se ⭐",
+    "Teri aankhon mein doob jana chahta hoon 🌊",
+    "Tere bina zindagi adhuri si lagti hai 🌙",
+    "Tere naam se juda hai mera har lamha 💫",
+    "Tu meri subah, tu meri shaam hai 🌅",
+    "Tere bina ye dil udaas rehta hai 💔",
+    "Teri yaadon mein kho jata hoon main 🌙",
+    "Tere ishq mein pagal ho gaya hoon main 💘",
+    "Teri muskan meri duniya hai 😊",
+]
+
+QUOTE_LIST = [
+    "Zindagi mein sabse bada sukh, apne aap par vishwas karna hai 💪",
+    "Jo beet gaya usse bhool jao, jo aage hai uski taiyari karo 🚀",
+    "Sapne woh nahi jo aap sote hue dekhte hain, sapne woh hain jo aapko sone nahi dete 💭",
+    "Kamyabi ka raaz, haar ke baad uthna hai 🏆",
+    "Apni taqat ko pehchano, duniya tumhari hai 🌍",
+    "Har mushkil ke baad asaani hai 🌈",
+    "Waqt se bada koi guru nahi ⏰",
+    "Mehnat karo, phal zaroor milega 🌱",
+]
+
+JOKE_LIST = [
+    "Teacher: Homework kahan hai? Student: Sir WiFi nahi tha 😂",
+    "Doctor: Roz exercise karte ho? Patient: Sir TV remote uthata hoon 📺",
+    "Biwi: Mujhe kitna pyaar karte ho? Husband: Jitna WiFi ka signal 📶",
+    "Teacher: 2+2 kitna? Student: 4. Teacher: Shabash! Student: Aur 4 bhi? 😅",
+    "Boss: Tum late kyun aaye? Employee: Sir, neend nahi khuli 😂",
+]
+
+TRUTH_LIST = [
+    "Tu kabhi kisi ka best friend nahi ban sakta 😏",
+    "Teri zindagi mein sirf drama hai 💔",
+    "Tu jitna smart dikhta hai, utna hai nahi 🤡",
+    "Teri crush tujhe pasand nahi karti 💔",
+    "Tu apne aap ko overestimate karta hai 📈",
+    "Tere saare friends fake hain 🎭",
+    "Tu akela hota hai 📱",
+    "Teri life mein koi asli pyaar nahi hai 💔",
+]
+
+async def cmd_shayari(update, context):
+    await update.message.reply_text(random.choice(SHAYARI_LIST))
+
+async def cmd_quote(update, context):
+    await update.message.reply_text(random.choice(QUOTE_LIST))
+
+async def cmd_joke(update, context):
+    await update.message.reply_text(random.choice(JOKE_LIST))
+
+async def cmd_truth(update, context):
+    await update.message.reply_text(random.choice(TRUTH_LIST))
+
+async def cmd_rraid(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .rraid")
+    target = update.message.reply_to_message.from_user
+    REPLYRAID[str(target.id)] = {"active": True, "by": update.effective_user.id}
+    await update.message.reply_text(f"🔥 REPLY RAID ON — {target.first_name}")
+
+
+async def cmd_drraid(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if update.message.reply_to_message:
+        tid = str(update.message.reply_to_message.from_user.id)
+        if tid in REPLYRAID:
+            REPLYRAID[tid]["active"] = False
+            return await update.message.reply_text("🛑 REPLY RAID OFF!")
+    for tid in list(REPLYRAID.keys()):
+        if REPLYRAID[tid].get("by") == update.effective_user.id:
+            REPLYRAID[tid]["active"] = False
+    await update.message.reply_text("🛑 REPLY RAID OFF!")
+
+
+async def cmd_stop(update, context):
+    raid_state[update.effective_chat.id] = False
+    await update.message.reply_text("🛑 STOPPED!")
+
+
+async def cmd_unmute(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .unmute")
+    t = update.message.reply_to_message.from_user
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=update.effective_chat.id, user_id=t.id,
+            permissions=ChatPermissions(
+                can_send_messages=True, can_send_media_messages=True,
+                can_send_other_messages=True, can_add_web_page_previews=True,
+                can_send_polls=True, can_invite_users=True
+            )
+        )
+        await update.message.reply_text(f"🔊 {t.first_name} unmuted!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ {e}\nBot ko admin banao!")
+
+
+async def combined_handler(update, context):
+    try:
+        if not update.message or not update.effective_user:
+            return
+        uid = str(update.effective_user.id)
+        if uid in REPLYRAID and REPLYRAID[uid].get("active"):
+            line = random.choice(REPLY_LIST) if REPLY_LIST else "💀"
+            await update.message.reply_text(line, reply_to_message_id=update.message.message_id)
+    except Exception as e:
+        logger.error(f"Combined handler error: {e}")
+
+
+# ================== WELCOME SYSTEM ==================
+WELCOME_DATA = {
+    "enabled": True,
+    "message": "Welcome {name} to the group!",
+    "goodbye": "Bye {name}!",
+    "video": None,
+    "sticker": None,
+    "photo": None
+}
+
+async def cmd_setwelcome(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    _, args = parse_cmd(update.message.text)
+    if not args:
+        return await update.message.reply_text("Usage: .setwelcome [text]\nVars: {name}, {username}, {id}")
+    WELCOME_DATA["message"] = args.strip()
+    WELCOME_DATA["enabled"] = True
+    await update.message.reply_text("✅ Welcome set!")
+
+async def cmd_setwelcomevideo(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message or not update.message.reply_to_message.video:
+        return await update.message.reply_text("📌 Video pe reply .setwelcomevideo")
+    WELCOME_DATA["video"] = update.message.reply_to_message.video.file_id
+    WELCOME_DATA["enabled"] = True
+    await update.message.reply_text("✅ Welcome video set!")
+
+async def cmd_setwelcomesticker(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message or not update.message.reply_to_message.sticker:
+        return await update.message.reply_text("📌 Sticker pe reply .setwelcomesticker")
+    WELCOME_DATA["sticker"] = update.message.reply_to_message.sticker.file_id
+    WELCOME_DATA["enabled"] = True
+    await update.message.reply_text("✅ Welcome sticker set!")
+
+async def cmd_setgoodbye(update, context):
+    if not is_auth(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied!")
+    _, args = parse_cmd(update.message.text)
+    if not args:
+        return await update.message.reply_text("Usage: .setgoodbye [text]\nVars: {name}")
+    WELCOME_DATA["goodbye"] = args.strip()
+    await update.message.reply_text("✅ Goodbye set!")
+
+async def cmd_welcome(update, context):
+    status = "🟢 ON" if WELCOME_DATA.get("enabled", True) else "🔴 OFF"
+    await update.message.reply_text(f"🎉 Welcome: {status}\n📝 {WELCOME_DATA.get('message', '')}")
+
+async def cmd_removewelcome(update, context):
+    if not is_own(update.effective_user.id):
+        return await update.message.reply_text("👑 Sirf OWNER!")
+    WELCOME_DATA["enabled"] = False
+    await update.message.reply_text("🗑️ Disabled!")
+
+async def welcome_handler(update, context):
+    if not WELCOME_DATA.get("enabled", True):
+        return
+    try:
+        for member in update.message.new_chat_members:
+            if member.id == context.bot.id:
+                continue
+            name = member.first_name or "Bhai"
+            username = "@" + member.username if member.username else "No Username"
+            text = WELCOME_DATA.get("message", "Welcome {name}!")
+            text = text.replace("{name}", name).replace("{username}", username).replace("{id}", str(member.id))
+            video = WELCOME_DATA.get("video")
+            sticker = WELCOME_DATA.get("sticker")
+            if sticker:
+                try:
+                    await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
+                except:
+                    pass
+            if video:
+                try:
+                    await context.bot.send_video(chat_id=update.effective_chat.id, video=video, caption=text)
+                    continue
+                except:
+                    pass
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    except Exception as e:
+        logger.error(f"Welcome error: {e}")
+
+async def goodbye_handler(update, context):
+    try:
+        if update.message.left_chat_member:
+            left = update.message.left_chat_member
+            if left.id == context.bot.id:
+                return
+            name = left.first_name or "User"
+            text = WELCOME_DATA.get("goodbye", "Bye {name}!").replace("{name}", name)
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    except Exception as e:
+        logger.error(f"Goodbye error: {e}")
+
+# ================== EXTRA FEATURES ==================
+async def cmd_dice(update, context):
+    await update.message.reply_dice(emoji="🎲")
+
+async def cmd_dart(update, context):
+    await update.message.reply_dice(emoji="🎯")
+
+async def cmd_basket(update, context):
+    await update.message.reply_dice(emoji="🏀")
+
+async def cmd_football(update, context):
+    await update.message.reply_dice(emoji="⚽")
+
+async def cmd_bowling(update, context):
+    await update.message.reply_dice(emoji="🎳")
+
+async def cmd_slot(update, context):
+    await update.message.reply_dice(emoji="🎰")
+
+async def cmd_gay(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .gay")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"🏳️‍🌈 {t.first_name} is {random.randint(1,100)}% GAY!")
+
+async def cmd_lesbian(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .lesbian")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"🏳️‍🌈 {t.first_name} is {random.randint(1,100)}% LESBIAN!")
+
+async def cmd_couple(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .couple")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"💑 {t.first_name} + You = {random.randint(1,100)}% Couple!")
+
+async def cmd_ship(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .ship")
+    a = update.effective_user.first_name
+    b = update.message.reply_to_message.from_user.first_name
+    await update.message.reply_text(f"💘 {a} ❤️ {b} = {random.randint(1,100)}%")
+
+async def cmd_slap(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .slap")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"👋 {update.effective_user.first_name} slapped {t.first_name}! 💥")
+
+async def cmd_hug(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .hug")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"🤗 {update.effective_user.first_name} hugged {t.first_name}! ❤️")
+
+async def cmd_kiss(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .kiss")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"💋 {update.effective_user.first_name} kissed {t.first_name}! 😘")
+
+async def cmd_insult(update, context):
+    if not update.message.reply_to_message:
+        return await update.message.reply_text("📌 Reply .insult")
+    t = update.message.reply_to_message.from_user
+    await update.message.reply_text(f"🤬 {t.first_name} {random.choice(REPLY_LIST)}")
+
+async def cmd_sudo(update, context):
+    await update.message.reply_text(f"👑 Owner: {OWNER_USERNAME}\n🛡️ Co-Owner: {CO_OWNER_USERNAME}\n⭐ Sudo: {len(SUDO_USERS)}")
+
+# ================== FLOOD SYSTEM ==================
+flood_data = {}
+
+async def cmd_flood(update, context):
+    await update.message.reply_text(f"🌊 AntiFlood: ON\nLimit: {FLOOD_LIMIT} msgs/{FLOOD_TIME} sec")
+
+async def cmd_setflood(update, context):
+    if not is_own(update.effective_user.id):
+        return await update.message.reply_text("👑 Sirf OWNER!")
+    _, args = parse_cmd(update.message.text)
+    if not args:
+        return await update.message.reply_text("Usage: .setflood [limit]")
+    try:
+        global FLOOD_LIMIT
+        FLOOD_LIMIT = int(args.strip())
+        await update.message.reply_text(f"✅ Flood limit: {FLOOD_LIMIT}")
+    except:
+        await update.message.reply_text("❌ Number daal")
+
+async def flood_check(update, context):
+    try:
+        if not update.message or not update.effective_user:
+            return
+        if update.effective_chat.type == "private":
+            return
+        if is_auth(update.effective_user.id):
+            return
+        chat_id = update.effective_chat.id
+        now = time.time()
+        k = (chat_id, update.effective_user.id)
+        if k not in flood_data:
+            flood_data[k] = []
+        flood_data[k] = [t for t in flood_data[k] if now - t < FLOOD_TIME]
+        flood_data[k].append(now)
+        if len(flood_data[k]) > FLOOD_LIMIT:
+            try:
+                await context.bot.restrict_chat_member(chat_id=chat_id, user_id=update.effective_user.id, permissions=ChatPermissions(can_send_messages=False))
+                await update.message.reply_text(f"🌊 {update.effective_user.first_name} FLOOD — MUTED!")
+            except:
+                pass
+            flood_data[k] = []
+    except:
+        pass
+
+# ================== DM GAALI ==================
+async def dm_gaali_handler(update, context):
+    try:
+        if update.effective_chat.type != "private":
+            return
+        if not update.message or not update.message.text:
+            return
+        text_lower = update.message.text.lower()
+        if text_lower in [".start", "/start", ".help", "/help", ".alive", "/alive", ".ping", "/ping"]:
+            return
+        await update.message.reply_text(random.choice(REPLY_LIST))
+    except:
+        pass
+
+
+# ================== RULES SYSTEM ==================
+RULES_DATA = {}
+
+async def cmd_setrules(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    _, args = parse_cmd(update.message.text)
+    if not args: return await update.message.reply_text("Usage: .setrules [text]")
+    RULES_DATA[str(update.effective_chat.id)] = args.strip()
+    await update.message.reply_text("✅ Rules set!")
+
+async def cmd_rules(update, context):
+    chat_id = str(update.effective_chat.id)
+    if chat_id not in RULES_DATA: return await update.message.reply_text("📝 No rules set.")
+    await update.message.reply_text(f"📜 RULES:\n\n{RULES_DATA[chat_id]}")
+
+async def cmd_resetrules(update, context):
+    if not is_own(update.effective_user.id): return await update.message.reply_text("👑 Sirf OWNER!")
+    RULES_DATA.pop(str(update.effective_chat.id), None)
+    await update.message.reply_text("🗑️ Rules deleted!")
+
+# ================== FLOOD MODES ==================
+FLOOD_MODE = "mute"
+
+async def cmd_setfloodtimer(update, context):
+    if not is_own(update.effective_user.id): return await update.message.reply_text("👑 Sirf OWNER!")
+    _, args = parse_cmd(update.message.text)
+    if not args: return await update.message.reply_text("Usage: .setfloodtimer [sec]")
+    try:
+        global FLOOD_TIME
+        FLOOD_TIME = int(args.strip())
+        await update.message.reply_text(f"✅ Flood timer: {FLOOD_TIME}s")
+    except: await update.message.reply_text("❌ Number daal")
+
+async def cmd_floodmode(update, context):
+    if not is_own(update.effective_user.id): return await update.message.reply_text("👑 Sirf OWNER!")
+    _, args = parse_cmd(update.message.text)
+    if not args: return await update.message.reply_text("Usage: .floodmode mute/kick/ban")
+    global FLOOD_MODE
+    FLOOD_MODE = args.strip().lower()
+    await update.message.reply_text(f"✅ Flood mode: {FLOOD_MODE}")
+
+async def cmd_clearflood(update, context):
+    if not is_own(update.effective_user.id): return await update.message.reply_text("👑 Sirf OWNER!")
+    flood_data.clear()
+    await update.message.reply_text("🗑️ Flood data cleared!")
+
+async def cmd_stopall(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    chat_id = str(update.effective_chat.id)
+    if chat_id in FILTERS:
+        FILTERS[chat_id] = {}
+        await update.message.reply_text("🗑️ All filters deleted!")
+    else:
+        await update.message.reply_text("⚠️ No filters!")
+
+# ================== WARNINGS (USER) ==================
+async def cmd_warnings(update, context):
+    uid = str(update.effective_user.id)
+    chat_id = str(update.effective_chat.id)
+    count = WARNS.get(chat_id, {}).get(uid, 0)
+    await update.message.reply_text(f"⚠️ Your warnings: {count}/3")
+
+# ================== PREMIUM WELCOME/GOODBYE ==================
+async def cmd_setwelcome(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    _, args = parse_cmd(update.message.text)
+    if not args: return await update.message.reply_text("Usage: .setwelcome [text]\nVars: {name}, {username}, {id}")
+    WELCOME_DATA["message"] = args.strip()
+    WELCOME_DATA["enabled"] = True
+    await update.message.reply_text("✅ Welcome set!")
+
+async def cmd_setwelcomevideo(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message or not update.message.reply_to_message.video:
+        return await update.message.reply_text("📌 Video pe reply .setwelcomevideo")
+    WELCOME_DATA["video"] = update.message.reply_to_message.video.file_id
+    WELCOME_DATA["enabled"] = True
+    await update.message.reply_text("✅ Welcome video set!")
+
+async def cmd_setwelcomesticker(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    if not update.message.reply_to_message or not update.message.reply_to_message.sticker:
+        return await update.message.reply_text("📌 Sticker pe reply .setwelcomesticker")
+    WELCOME_DATA["sticker"] = update.message.reply_to_message.sticker.file_id
+    WELCOME_DATA["enabled"] = True
+    await update.message.reply_text("✅ Welcome sticker set!")
+
+async def cmd_setgoodbye(update, context):
+    if not is_auth(update.effective_user.id): return await update.message.reply_text("❌ Access Denied!")
+    _, args = parse_cmd(update.message.text)
+    if not args: return await update.message.reply_text("Usage: .setgoodbye [text]\nVars: {name}")
+    WELCOME_DATA["goodbye"] = args.strip()
+    await update.message.reply_text("✅ Goodbye set!")
+
+async def cmd_welcome(update, context):
+    status = "🟢 ON" if WELCOME_DATA.get("enabled", True) else "🔴 OFF"
+    await update.message.reply_text(f"🎉 Welcome: {status}\n📝 {WELCOME_DATA.get('message', '')}")
+
+async def cmd_removewelcome(update, context):
+    if not is_own(update.effective_user.id): return await update.message.reply_text("👑 Sirf OWNER!")
+    WELCOME_DATA["enabled"] = False
+    await update.message.reply_text("🗑️ Disabled!")
+
+async def cmd_delsudo(update, context):
+    if not is_own(update.effective_user.id): return await update.message.reply_text("👑 Sirf OWNER!")
+    tid = update.message.reply_to_message.from_user.id if update.message.reply_to_message else None
+    if not tid:
+        _, args = parse_cmd(update.message.text)
+        if args and args.strip().isdigit(): tid = int(args.strip())
+    if not tid: return await update.message.reply_text("📌 Reply ya ID .delsudo")
+    SUDO_USERS.discard(tid)
+    await update.message.reply_text("🗑️ Sudo removed!")
+
+
+async def cmd_help(update, context):
+    text = (
+        "╔══════════════════════════════════════════╗\n"
+        "║     💀  P R O _ X _ D E V I L  💀        ║\n"
+        "║            M E N U                       ║\n"
+        "╚══════════════════════════════════════════╝\n\n"
+        "✨ EACH COMMAND IS BUILT FOR SPEED + POWER ✨\n"
+        "👇 CHOOSE THE CATEGORY 👇\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  🛡️  ADMIN  COMMANDS                   ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .warn (reply)         ➜ User ko warn\n"
+        "  • .resetwarn (reply)    ➜ Warnings clear\n"
+        "  • .mute (reply)         ➜ User ko mute\n"
+        "  • .unmute (reply)       ➜ User ko unmute\n"
+        "  • .ban (reply)          ➜ User ko ban\n"
+        "  • .unban (reply)        ➜ User ko unban\n"
+        "  • .purge (reply)        ➜ Messages delete\n"
+        "  • .promote (reply)      ➜ Admin banao\n"
+        "  • .demote (reply)       ➜ Admin se hatao\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  📜  RULES  COMMANDS                   ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .setrules [text]      ➜ Rules set\n"
+        "  • .rules                ➜ Rules dekho\n"
+        "  • .resetrules           ➜ Rules delete\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  🌊  ANTI-FLOOD                        ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .flood                ➜ Current settings\n"
+        "  • .setflood [n]         ➜ Flood limit\n"
+        "  • .setfloodtimer [s]    ➜ Time window\n"
+        "  • .floodmode mute/kick/ban ➜ Mode\n"
+        "  • .clearflood           ➜ Data clear\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  🔍  FILTERS                           ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .filter [word] [reply] ➜ Filter add\n"
+        "  • .filters               ➜ Saare filters\n"
+        "  • .stopfilter [word]     ➜ Ek delete\n"
+        "  • .stopall               ➜ Saare delete\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  🎉  WELCOME / GOODBYE                 ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .setwelcome [text]     ➜ Welcome set\n"
+        "  • .setwelcomevideo       ➜ Video set\n"
+        "  • .setwelcomesticker     ➜ Sticker set\n"
+        "  • .setgoodbye [text]     ➜ Goodbye set\n"
+        "  • .welcome               ➜ Welcome dekho\n"
+        "  • .removewelcome         ➜ Disable\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  🔥  RAID  COMMANDS                    ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .raid .hiraid .pbraid .randi .eraid\n"
+        "  • .gali .uraid .ultimate .stop\n"
+        "  • .rraid .drraid\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  🎲  FUN  &  GAMES                     ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .shayari .quote .joke .truth .dare\n"
+        "  • .dice .dart .basket .football .bowling .slot\n"
+        "  • .gay .lesbian .couple .ship\n"
+        "  • .slap .hug .kiss .insult\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  ⭐  SUDO  SYSTEM                      ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .requestsudo .mysudo .listsudo\n"
+        "  • .approvesudo .addsudo .removesudo\n"
+        "  • .rejectsudo .delsudo\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        "┃  ⚙️  SYSTEM                            ┃\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        "  • .start .help .alive .ping .id .getid\n"
+        "  • .sudo .botstats .broadcast\n\n"
+        "╔══════════════════════════════════════════╗\n"
+        "║   👑 OWNER: " + OWNER_USERNAME + "\n"
+        "║   🛡️ CO-OWNER: " + CO_OWNER_USERNAME + "\n"
+        "║   💀 PRO_X_DEVIL — THE BEAST 💀          ║\n"
+        "╚══════════════════════════════════════════╝"
+    )
+    await update.message.reply_text(text, reply_markup=menu())
+
+
+# ================== RENDER HEALTH SERVER ==================
+from flask import Flask
+import threading, os
+
+render_app = Flask(__name__)
+
+@render_app.route('/')
+@render_app.route('/health')
+def health():
+    return "PRO_X_DEVIL is running!"
+
+def run_render_server():
+    port = int(os.environ.get("PORT", 8080))
+    render_app.run(host='0.0.0.0', port=port)
+
 def main():
     threading.Thread(target=run_render_server, daemon=True).start()
     app = Application.builder().token(BOT_TOKEN).build()
-    commands = [
-        ("start", cmd_start), ("help", cmd_help), ("alive", cmd_alive),
-        ("ping", cmd_ping), ("id", cmd_id),
-        ("raid", cmd_raid), ("spam", cmd_spam), ("ultimate", cmd_ultimate),
-        ("stop", cmd_stop), ("stopultimate", cmd_stopultimate),
-        ("nc", cmd_nc), ("stopnc", cmd_stopnc),
-        ("zenonc", cmd_zenonc), ("stopzeno", cmd_stopzeno),
-        ("emo", cmd_emo), ("stopemo", cmd_stopemo),
-        ("replyraid", cmd_replyraid), ("stopreplyraid", cmd_stopreplyraid),
-        ("gali", cmd_gali), ("shayari", cmd_shayari), ("joke", cmd_joke),
-        ("roast", cmd_roast), ("truth", cmd_truth), ("dare", cmd_dare),
-        ("flood", cmd_flood), ("setflood", cmd_setflood),
-        ("requestsudo", cmd_requestsudo), ("approvesudo", cmd_approvesudo),
-        ("mysudo", cmd_mysudo), ("addsudo", cmd_addsudo),
-        ("removesudo", cmd_removesudo), ("listsudo", cmd_listsudo),
-    ]
-    for cmd, func in commands:
-        app.add_handler(CommandHandler(cmd, func))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, combined_handler))
-    app.add_handler(MessageHandler(filters.ALL, flood_check), group=1)
-    print(f"💀 {BOT_NAME} STARTED 💀")
-    
-    for cmd, func in [("dice",cmd_dice),("dart",cmd_dart),("basket",cmd_basket),("football",cmd_football),("bowling",cmd_bowling),("slot",cmd_slot),("gay",cmd_gay),("lesbian",cmd_lesbian),("couple",cmd_couple),("ship",cmd_ship),("insult",cmd_insult),("slap",cmd_slap),("hug",cmd_hug),("kiss",cmd_kiss)]:
-        app.add_handler(CommandHandler(cmd, func))
 
-        app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, premium_welcome))
+    # Basic
+
+    # Raid
+
+    # Title
+
+    # Fun
+
+    # Games
+
+    # Flood
+
+    # Sudo System
+
+    # Handlers
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, tag_gaali_handler), group=0)
+    app.add_handler(MessageHandler(filters.ALL, flood_check), group=1)
+
+    print("💀 PRO_X_DEVIL STARTED 💀")
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=3)
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=3)
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("alive", cmd_alive))
+    app.add_handler(CommandHandler("ping", cmd_ping))
+    app.add_handler(CommandHandler("id", cmd_id))
+    app.add_handler(CommandHandler("getid", cmd_getid))
+    app.add_handler(CommandHandler("botstats", cmd_botstats))
+    app.add_handler(CommandHandler("sudo", cmd_sudo))
+    app.add_handler(CommandHandler("raid", cmd_raid))
+    app.add_handler(CommandHandler("hiraid", cmd_hiraid))
+    app.add_handler(CommandHandler("pbraid", cmd_pbraid))
+    app.add_handler(CommandHandler("randi", cmd_randi))
+    app.add_handler(CommandHandler("eraid", cmd_eraid))
+    app.add_handler(CommandHandler("gali", cmd_gali))
+    app.add_handler(CommandHandler("uraid", cmd_uraid))
+    app.add_handler(CommandHandler("ultimate", cmd_ultimate))
+    app.add_handler(CommandHandler("rraid", cmd_rraid))
+    app.add_handler(CommandHandler("drraid", cmd_drraid))
+    app.add_handler(CommandHandler("replyraid", cmd_replyraid))
+    app.add_handler(CommandHandler("stopreplyraid", cmd_stopreplyraid))
+    app.add_handler(CommandHandler("spam", cmd_spam))
+    app.add_handler(CommandHandler("stop", cmd_stop))
+    app.add_handler(CommandHandler("stopultimate", cmd_stopultimate))
+    app.add_handler(CommandHandler("nc", cmd_nc))
+    app.add_handler(CommandHandler("stopnc", cmd_stopnc))
+    app.add_handler(CommandHandler("zenonc", cmd_zenonc))
+    app.add_handler(CommandHandler("stopzeno", cmd_stopzeno))
+    app.add_handler(CommandHandler("emo", cmd_emo))
+    app.add_handler(CommandHandler("stopemo", cmd_stopemo))
+    app.add_handler(CommandHandler("shayari", cmd_shayari))
+    app.add_handler(CommandHandler("truth", cmd_truth))
+    app.add_handler(CommandHandler("quote", cmd_quote))
+    app.add_handler(CommandHandler("joke", cmd_joke))
+    app.add_handler(CommandHandler("roast", cmd_roast))
+    app.add_handler(CommandHandler("dice", cmd_dice))
+    app.add_handler(CommandHandler("dart", cmd_dart))
+    app.add_handler(CommandHandler("basket", cmd_basket))
+    app.add_handler(CommandHandler("football", cmd_football))
+    app.add_handler(CommandHandler("bowling", cmd_bowling))
+    app.add_handler(CommandHandler("slot", cmd_slot))
+    app.add_handler(CommandHandler("gay", cmd_gay))
+    app.add_handler(CommandHandler("lesbian", cmd_lesbian))
+    app.add_handler(CommandHandler("couple", cmd_couple))
+    app.add_handler(CommandHandler("ship", cmd_ship))
+    app.add_handler(CommandHandler("slap", cmd_slap))
+    app.add_handler(CommandHandler("hug", cmd_hug))
+    app.add_handler(CommandHandler("kiss", cmd_kiss))
+    app.add_handler(CommandHandler("insult", cmd_insult))
+    app.add_handler(CommandHandler("flood", cmd_flood))
+    app.add_handler(CommandHandler("setflood", cmd_setflood))
+    app.add_handler(CommandHandler("requestsudo", cmd_requestsudo))
+    app.add_handler(CommandHandler("approvesudo", cmd_approvesudo))
+    app.add_handler(CommandHandler("mysudo", cmd_mysudo))
+    app.add_handler(CommandHandler("addsudo", cmd_addsudo))
+    app.add_handler(CommandHandler("removesudo", cmd_removesudo))
+    app.add_handler(CommandHandler("listsudo", cmd_listsudo))
+    app.add_handler(CommandHandler("mute", cmd_mute))
+    app.add_handler(CommandHandler("unmute", cmd_unmute))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, premium_welcome))
     app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, premium_goodbye))
-    
-    for cmd, func in [("hardraid",cmd_hardraid),("massraid",cmd_massraid),("nukeraid",cmd_nukeraid),("ultraid",cmd_ultraid),("spamraid",cmd_spamraid),("raidall",cmd_raidall)]:
-        app.add_handler(CommandHandler(cmd, func))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, combined_handler))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=3)
+    app.add_handler(CommandHandler("setwelcome", cmd_setwelcome))
+    app.add_handler(CommandHandler("setwelcomevideo", cmd_setwelcomevideo))
+    app.add_handler(CommandHandler("setwelcomesticker", cmd_setwelcomesticker))
+    app.add_handler(CommandHandler("setgoodbye", cmd_setgoodbye))
+    app.add_handler(CommandHandler("welcome", cmd_welcome))
+    app.add_handler(CommandHandler("removewelcome", cmd_removewelcome))
+    app.add_handler(CommandHandler("dice", cmd_dice))
+    app.add_handler(CommandHandler("dart", cmd_dart))
+    app.add_handler(CommandHandler("basket", cmd_basket))
+    app.add_handler(CommandHandler("football", cmd_football))
+    app.add_handler(CommandHandler("bowling", cmd_bowling))
+    app.add_handler(CommandHandler("slot", cmd_slot))
+    app.add_handler(CommandHandler("gay", cmd_gay))
+    app.add_handler(CommandHandler("lesbian", cmd_lesbian))
+    app.add_handler(CommandHandler("couple", cmd_couple))
+    app.add_handler(CommandHandler("ship", cmd_ship))
+    app.add_handler(CommandHandler("slap", cmd_slap))
+    app.add_handler(CommandHandler("hug", cmd_hug))
+    app.add_handler(CommandHandler("kiss", cmd_kiss))
+    app.add_handler(CommandHandler("insult", cmd_insult))
+    app.add_handler(CommandHandler("sudo", cmd_sudo))
+    app.add_handler(CommandHandler("flood", cmd_flood))
+    app.add_handler(CommandHandler("setflood", cmd_setflood))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_handler), group=5)
+    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, goodbye_handler), group=6)
+    app.add_handler(MessageHandler(filters.ALL, flood_check), group=7)
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=8)
+    import asyncio
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    app.add_handler(CommandHandler("setrules", cmd_setrules))
+    app.add_handler(CommandHandler("rules", cmd_rules))
+    app.add_handler(CommandHandler("resetrules", cmd_resetrules))
+    app.add_handler(CommandHandler("setfloodtimer", cmd_setfloodtimer))
+    app.add_handler(CommandHandler("floodmode", cmd_floodmode))
+    app.add_handler(CommandHandler("clearflood", cmd_clearflood))
+    app.add_handler(CommandHandler("stopall", cmd_stopall))
+    app.add_handler(CommandHandler("warnings", cmd_warnings))
+    app.add_handler(CommandHandler("setwelcome", cmd_setwelcome))
+    app.add_handler(CommandHandler("setwelcomevideo", cmd_setwelcomevideo))
+    app.add_handler(CommandHandler("setwelcomesticker", cmd_setwelcomesticker))
+    app.add_handler(CommandHandler("setgoodbye", cmd_setgoodbye))
+    app.add_handler(CommandHandler("welcome", cmd_welcome))
+    app.add_handler(CommandHandler("removewelcome", cmd_removewelcome))
+    app.add_handler(CommandHandler("delsudo", cmd_delsudo))
+    import asyncio
+    asyncio.set_event_loop(asyncio.new_event_loop())
     app.run_polling()
+
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    # Basic
+
+    # Raid
+
+    # Title
+
+    # Fun
+
+    # Games
+
+    # Flood
+
+    # Sudo
+
+    # Handlers
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, tag_gaali_handler), group=0)
+    app.add_handler(MessageHandler(filters.ALL, flood_check), group=1)
+
+    print("💀 PRO_X_DEVIL STARTED 💀")
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=3)
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=3)
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("alive", cmd_alive))
+    app.add_handler(CommandHandler("ping", cmd_ping))
+    app.add_handler(CommandHandler("id", cmd_id))
+    app.add_handler(CommandHandler("getid", cmd_getid))
+    app.add_handler(CommandHandler("botstats", cmd_botstats))
+    app.add_handler(CommandHandler("sudo", cmd_sudo))
+    app.add_handler(CommandHandler("raid", cmd_raid))
+    app.add_handler(CommandHandler("hiraid", cmd_hiraid))
+    app.add_handler(CommandHandler("pbraid", cmd_pbraid))
+    app.add_handler(CommandHandler("randi", cmd_randi))
+    app.add_handler(CommandHandler("eraid", cmd_eraid))
+    app.add_handler(CommandHandler("gali", cmd_gali))
+    app.add_handler(CommandHandler("uraid", cmd_uraid))
+    app.add_handler(CommandHandler("ultimate", cmd_ultimate))
+    app.add_handler(CommandHandler("rraid", cmd_rraid))
+    app.add_handler(CommandHandler("drraid", cmd_drraid))
+    app.add_handler(CommandHandler("replyraid", cmd_replyraid))
+    app.add_handler(CommandHandler("stopreplyraid", cmd_stopreplyraid))
+    app.add_handler(CommandHandler("spam", cmd_spam))
+    app.add_handler(CommandHandler("stop", cmd_stop))
+    app.add_handler(CommandHandler("stopultimate", cmd_stopultimate))
+    app.add_handler(CommandHandler("nc", cmd_nc))
+    app.add_handler(CommandHandler("stopnc", cmd_stopnc))
+    app.add_handler(CommandHandler("zenonc", cmd_zenonc))
+    app.add_handler(CommandHandler("stopzeno", cmd_stopzeno))
+    app.add_handler(CommandHandler("emo", cmd_emo))
+    app.add_handler(CommandHandler("stopemo", cmd_stopemo))
+    app.add_handler(CommandHandler("shayari", cmd_shayari))
+    app.add_handler(CommandHandler("truth", cmd_truth))
+    app.add_handler(CommandHandler("quote", cmd_quote))
+    app.add_handler(CommandHandler("joke", cmd_joke))
+    app.add_handler(CommandHandler("roast", cmd_roast))
+    app.add_handler(CommandHandler("dice", cmd_dice))
+    app.add_handler(CommandHandler("dart", cmd_dart))
+    app.add_handler(CommandHandler("basket", cmd_basket))
+    app.add_handler(CommandHandler("football", cmd_football))
+    app.add_handler(CommandHandler("bowling", cmd_bowling))
+    app.add_handler(CommandHandler("slot", cmd_slot))
+    app.add_handler(CommandHandler("gay", cmd_gay))
+    app.add_handler(CommandHandler("lesbian", cmd_lesbian))
+    app.add_handler(CommandHandler("couple", cmd_couple))
+    app.add_handler(CommandHandler("ship", cmd_ship))
+    app.add_handler(CommandHandler("slap", cmd_slap))
+    app.add_handler(CommandHandler("hug", cmd_hug))
+    app.add_handler(CommandHandler("kiss", cmd_kiss))
+    app.add_handler(CommandHandler("insult", cmd_insult))
+    app.add_handler(CommandHandler("flood", cmd_flood))
+    app.add_handler(CommandHandler("setflood", cmd_setflood))
+    app.add_handler(CommandHandler("requestsudo", cmd_requestsudo))
+    app.add_handler(CommandHandler("approvesudo", cmd_approvesudo))
+    app.add_handler(CommandHandler("mysudo", cmd_mysudo))
+    app.add_handler(CommandHandler("addsudo", cmd_addsudo))
+    app.add_handler(CommandHandler("removesudo", cmd_removesudo))
+    app.add_handler(CommandHandler("listsudo", cmd_listsudo))
+    app.add_handler(CommandHandler("mute", cmd_mute))
+    app.add_handler(CommandHandler("unmute", cmd_unmute))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, premium_welcome))
+    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, premium_goodbye))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, combined_handler))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=3)
+    app.add_handler(CommandHandler("setwelcome", cmd_setwelcome))
+    app.add_handler(CommandHandler("setwelcomevideo", cmd_setwelcomevideo))
+    app.add_handler(CommandHandler("setwelcomesticker", cmd_setwelcomesticker))
+    app.add_handler(CommandHandler("setgoodbye", cmd_setgoodbye))
+    app.add_handler(CommandHandler("welcome", cmd_welcome))
+    app.add_handler(CommandHandler("removewelcome", cmd_removewelcome))
+    app.add_handler(CommandHandler("dice", cmd_dice))
+    app.add_handler(CommandHandler("dart", cmd_dart))
+    app.add_handler(CommandHandler("basket", cmd_basket))
+    app.add_handler(CommandHandler("football", cmd_football))
+    app.add_handler(CommandHandler("bowling", cmd_bowling))
+    app.add_handler(CommandHandler("slot", cmd_slot))
+    app.add_handler(CommandHandler("gay", cmd_gay))
+    app.add_handler(CommandHandler("lesbian", cmd_lesbian))
+    app.add_handler(CommandHandler("couple", cmd_couple))
+    app.add_handler(CommandHandler("ship", cmd_ship))
+    app.add_handler(CommandHandler("slap", cmd_slap))
+    app.add_handler(CommandHandler("hug", cmd_hug))
+    app.add_handler(CommandHandler("kiss", cmd_kiss))
+    app.add_handler(CommandHandler("insult", cmd_insult))
+    app.add_handler(CommandHandler("sudo", cmd_sudo))
+    app.add_handler(CommandHandler("flood", cmd_flood))
+    app.add_handler(CommandHandler("setflood", cmd_setflood))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_handler), group=5)
+    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, goodbye_handler), group=6)
+    app.add_handler(MessageHandler(filters.ALL, flood_check), group=7)
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, dm_gaali_handler), group=8)
+    import asyncio
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    app.add_handler(CommandHandler("setrules", cmd_setrules))
+    app.add_handler(CommandHandler("rules", cmd_rules))
+    app.add_handler(CommandHandler("resetrules", cmd_resetrules))
+    app.add_handler(CommandHandler("setfloodtimer", cmd_setfloodtimer))
+    app.add_handler(CommandHandler("floodmode", cmd_floodmode))
+    app.add_handler(CommandHandler("clearflood", cmd_clearflood))
+    app.add_handler(CommandHandler("stopall", cmd_stopall))
+    app.add_handler(CommandHandler("warnings", cmd_warnings))
+    app.add_handler(CommandHandler("setwelcome", cmd_setwelcome))
+    app.add_handler(CommandHandler("setwelcomevideo", cmd_setwelcomevideo))
+    app.add_handler(CommandHandler("setwelcomesticker", cmd_setwelcomesticker))
+    app.add_handler(CommandHandler("setgoodbye", cmd_setgoodbye))
+    app.add_handler(CommandHandler("welcome", cmd_welcome))
+    app.add_handler(CommandHandler("removewelcome", cmd_removewelcome))
+    app.add_handler(CommandHandler("delsudo", cmd_delsudo))
+    import asyncio
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    app.run_polling()
+
 
 if __name__ == "__main__":
     main()
-
-# ================== RENDER HEALTH SERVER ==================
-from flask import Flask
-import threading, os
-
-render_app = Flask(__name__)
-
-@render_app.route('/')
-@render_app.route('/health')
-def health():
-    return "PRO_X_DEVIL is running!"
-
-def run_render_server():
-    port = int(os.environ.get("PORT", 8080))
-    render_app.run(host='0.0.0.0', port=port)
-
-# ================== RENDER HEALTH SERVER ==================
-from flask import Flask
-import threading, os
-
-render_app = Flask(__name__)
-
-@render_app.route('/')
-@render_app.route('/health')
-def health():
-    return "PRO_X_DEVIL is running!"
-
-def run_render_server():
-    port = int(os.environ.get("PORT", 8080))
-    render_app.run(host='0.0.0.0', port=port)
-
-# ================== RENDER HEALTH SERVER ==================
-from flask import Flask
-import threading, os
-
-render_app = Flask(__name__)
-
-@render_app.route('/')
-@render_app.route('/health')
-def health():
-    return "PRO_X_DEVIL is running!"
-
-def run_render_server():
-    port = int(os.environ.get("PORT", 8080))
-    render_app.run(host='0.0.0.0', port=port)
